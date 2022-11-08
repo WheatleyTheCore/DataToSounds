@@ -14,14 +14,15 @@ border_width = 10
 border_color = 287
 blur_size = 10
 blur_iterations = 2
+disiable_waveform_smoothing = False
 
 def printUsage():
     print('Usage for imageToSound.py:')
-    print('Syntax: python imageToSound.py -i <path_to_sound> -o <output filename> --bw=<border_width> --bc=<border color (0-255)> --blursize=<blur_size> --bluriterations=<blur iterations>')
+    print('Syntax: python imageToSound.py -i <path_to_sound> -o <output filename> --bw=<border_width> --bc=<border color (0-255)> --blursize=<blur_size> --bluriterations=<blur iterations> --disablewaveformsmoothing')
     print('Also Valid Syntax: python fixDB.py -i <inputFile> -o <outputFile>')
 
 try:
-    opts, args = getopt.getopt(sys.argv[1:], 'hi:o:', ['help', 'bw=', 'bc=', 'blursize=', 'bluriterations='])
+    opts, args = getopt.getopt(sys.argv[1:], 'hi:o:', ['help', 'bw=', 'bc=', 'blursize=', 'bluriterations=', 'disablewaveformsmoothing'])
 
 except getopt.GetoptError as err:
     print(err)
@@ -44,6 +45,8 @@ for o, a in opts:
         blur_size = int(a)
     elif (o == '--bluriterations'):
         blur_iterations = int(a)
+    elif (o == '--disablewaveformsmoothing'):
+        disiable_waveform_smoothing = True
     else:
         assert False, "unhandled option"
 
@@ -58,6 +61,7 @@ cv.imshow('original image [press any key to continue]', img)
 cv.waitKey(0)
 cv.destroyAllWindows()
 
+# draw rectangle along all borders so there's no popping in between rows
 cv.rectangle(img, (0, 0), ((len(img[0])), (len(img))), (border_color, border_color, border_color), border_width)
 
 cv.imshow('added box for smoothing! [press any key to continue]', img)
@@ -66,9 +70,10 @@ cv.imshow('added box for smoothing! [press any key to continue]', img)
 cv.waitKey(0)
 cv.destroyAllWindows()
 
+# convert to grayscale since we're only working with brightnesses
 gray = cv.cvtColor(img, cv.COLOR_BGR2GRAY)
 
-
+# blur image for less harsh sound
 for i in range(0, blur_iterations):
     gray = cv.blur(gray, [blur_size, blur_size])
 
@@ -88,12 +93,15 @@ for columnIndex in range(0, len(gray[0])):
     for rowIndex in range(0, len(gray)):
         brightnesses.append(gray[rowIndex][columnIndex])
 
-brightnesses = savgol_filter(brightnesses, 60, 3)
+# smooth the waveform for less harsh sound
+if (disiable_waveform_smoothing == False):
+    brightnesses = savgol_filter(brightnesses, 60, 3)
 
 
 maxBrightness = max(brightnesses)
 minBrightness = min(brightnesses)
 
+# normalize all values to between -20000 and 20000
 for i, item in enumerate(brightnesses):
     brightnesses[i] = (((brightnesses[i] - minBrightness) / (maxBrightness - minBrightness))) * (2 * 20000) - 20000
 
